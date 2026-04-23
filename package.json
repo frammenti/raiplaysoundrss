@@ -1,0 +1,36 @@
+{
+  "name": "raiplaysoundrss",
+  "version": "1.0.0",
+  "description": "A tiny service to convert RaiPlay Sound program data into RSS feeds",
+  "keywords": [
+    "rss"
+  ],
+  "homepage": "https://github.com/frammenti/raiplaysoundrss#readme",
+  "bugs": {
+    "url": "https://github.com/frammenti/raiplaysoundrss/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/frammenti/raiplaysoundrss.git"
+  },
+  "license": "GPL-3.0-or-later",
+  "author": "frammenti",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/src/index.js"
+  },
+  "dependencies": {
+    "@fastify/rate-limit": "^10.3.0",
+    "fastify": "^5.8.5",
+    "feed": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": "^22"
+  }
+}

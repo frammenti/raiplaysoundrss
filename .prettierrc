@@ -1,0 +1,15 @@
+{
+  "trailingComma": "none",
+  "arrowParens": "avoid",
+  "bracketSameLine": false,
+  "bracketSpacing": true,
+  "endOfLine": "lf",
+  "experimentalOperatorPosition": "start",
+  "experimentalTernaries": false,
+  "printWidth": 80,
+  "semi": false,
+  "singleQuote": true,
+  "singleAttributePerLine": true,
+  "tabWidth": 2,
+  "useTabs": false
+}

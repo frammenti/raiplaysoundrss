@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2022",
+
+    /* Linting */
+    "strict": true,
+    "noImplicitAny": true,
+    "strictFunctionTypes": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+
+    /* Build */
+    "outDir": "dist",
+    "declaration": true,
+    "declarationMap": false,
+
+    /* Json */
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+
+    /* Caching */
+    "composite": true,
+    "incremental": true
+  },
+  "include": ["src"]
+}
