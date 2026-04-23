@@ -24,12 +24,13 @@ await fastify.register(rateLimit, {
 
 await loadCache()
 
-fastify.get<{ Params: { program: string } }>(
-  '/rss/:program.xml',
+fastify.get<{ Params: { type: string; name: string } }>(
+  '/rss/:type/:name.xml',
   async (req, reply) => {
-    const xml = await buildFeed(req.params.program)
+    const program = `${req.params.type}/${req.params.name}`
+    const xml = await buildFeed(program)
 
-    const lastModified = getModifiedStatus(req.params.program)
+    const lastModified = getModifiedStatus(program)
 
     const { modified, etag } = checkHash(xml, req, lastModified)
 
@@ -45,7 +46,7 @@ fastify.get<{ Params: { program: string } }>(
   }
 )
 
-fastify.get('/health', async () => {
+fastify.get('/rss/health', async () => {
   return {
     status: 'ok',
     runningFor: duration(Date.now() - start),

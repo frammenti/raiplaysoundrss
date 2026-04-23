@@ -11,21 +11,25 @@ This tiny Fastify instance generates perfect RSS podcast feeds for programs on R
 It exposes endpoints structured like:
 
 ```
-/rss/:program.xml
+/rss/:type/:name.xml
 ```
 
 for example:
 
 ```
-/rss/battiti.xml
+/rss/programmi/battiti.xml
 ```
 
-## Where do I find the program name?
+## Where do I find the program type and name?
+
+Check on the website:
 
 ```
 https://www.raiplaysound.it/programmi/battiti
-                                      ↑ here ↑
+                            ↑ type ↑  ↑ name ↑
 ```
+
+Works with _programmi_, _audiolibri_, _playlist_... (not _dirette_)
 
 ## What do I need to make this work?
 
@@ -42,7 +46,7 @@ npm run start
 Then open:
 
 ```
-http://localhost:3000/rss/battiti.xml
+http://localhost:3000/rss/programmi/battiti.xml
 ```
 
 Run it behind a reverse proxy (Caddy, Nginx, etc.) and bind it to localhost.
@@ -69,7 +73,7 @@ This service restores a simple, open, and standard way to access that content.
 1. Fetch program data:
 
 ```
-/programmi/:program.json
+https://www.raiplaysound.it/:type/:name.json
 ```
 
 2. Extract episodes:

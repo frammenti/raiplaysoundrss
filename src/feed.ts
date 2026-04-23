@@ -31,7 +31,7 @@ async function buildFeed(program: string) {
 
   log('SERVE', program)
 
-  const url = `${BASE}/programmi/${program}.json`
+  const url = `${BASE}/${program}.json`
   const data = await fetchT(url).then(r => r.json())
   let modified = false
 
@@ -64,8 +64,7 @@ async function buildFeed(program: string) {
         log('REFRESH', program, ep.title)
         modified = true
 
-        const detail = await fetchT(BASE + ep.path_id).then(r => r.json())
-        const mp3 = await resolveMp3(detail.downloadable_audio.url)
+        const mp3 = await resolveMp3(ep.downloadable_audio?.url ?? ep.audio.url)
 
         cache[program][id] = {
           ...cached,
@@ -77,8 +76,7 @@ async function buildFeed(program: string) {
       log('NEW', program, ep.title)
       modified = true
 
-      const detail = await fetchT(BASE + ep.path_id).then(r => r.json())
-      const mp3 = await resolveMp3(detail.downloadable_audio.url)
+      const mp3 = await resolveMp3(ep.downloadable_audio?.url ?? ep.audio.url)
 
       cache[program][id] = {
         mp3,
