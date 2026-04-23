@@ -1,4 +1,6 @@
-export { log, duration, parseDate, fetchT, format }
+export { log, duration, fetchT, format, parseDate }
+
+import { DateTime } from 'luxon'
 
 type UnitDisplay = 'short' | 'long' | 'narrow'
 
@@ -7,8 +9,19 @@ function log(...args: any[]) {
 }
 
 function parseDate(dateStr: string, timeStr: string) {
-  const [d, m, y] = dateStr.split('-')
-  return new Date(`${y}-${m}-${d}T${timeStr}:00Z`)
+  const [year, month, day] = dateStr.split('-')
+  const [hour, minute] = timeStr.split(':')
+
+  return DateTime.fromObject(
+    {
+      year: Number(year),
+      month: Number(month),
+      day: Number(day),
+      hour: Number(hour),
+      minute: Number(minute)
+    },
+    { zone: 'Europe/Rome' } // with correct time offset
+  ).toJSDate()
 }
 
 // Duration format without Temporal

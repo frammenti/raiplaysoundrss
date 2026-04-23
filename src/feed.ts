@@ -2,7 +2,7 @@ import { Feed } from 'feed'
 
 import { cache, saveCache } from './cache.js'
 import { updateStatus } from './status.js'
-import { log, duration, parseDate, fetchT, format } from './utils.js'
+import { log, duration, fetchT, format, parseDate } from './utils.js'
 
 export { buildFeed }
 
@@ -93,7 +93,7 @@ async function buildFeed(program: string) {
 
       cache[program][id] = {
         mp3,
-        date: parseDate(ep.create_date, ep.create_time),
+        date: parseDate(ep.track_info.date, ep.create_time),
         resolvedAt: now
       }
     }
