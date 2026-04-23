@@ -112,8 +112,6 @@ async function buildFeed(program: string) {
   for (const item of items) {
     const ep = episodes.find((e: any) => e.uniquename === item.id)
 
-    console.log(ep.episode_title)
-
     feed.addItem({
       title: ep.episode_title ?? ep.title,
       id: item.id,
