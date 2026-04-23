@@ -1,4 +1,4 @@
-export { log, duration, parseDate, fetchT }
+export { log, duration, parseDate, fetchT, format }
 
 type UnitDisplay = 'short' | 'long' | 'narrow'
 
@@ -73,4 +73,8 @@ async function fetchT(url: string, options = {}, timeout = 8000) {
   } finally {
     clearTimeout(id)
   }
+}
+
+function format(str: string, ...values: any[]) {
+  return str.replace(/{(\d+)}/g, (match, index) => values[index] ?? match)
 }

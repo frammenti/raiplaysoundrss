@@ -1,20 +1,30 @@
 import { Feed } from 'feed'
 
 import { cache, saveCache } from './cache.js'
-import { log, duration, parseDate, fetchT } from './utils.js'
 import { updateStatus } from './status.js'
+import { log, duration, parseDate, fetchT, format } from './utils.js'
 
 export { buildFeed }
 
 const BASE = 'https://www.raiplaysound.it'
 const MP3_TTL = 1000 * 60 * 60 * 24 * 7 // 1 week
 
+const MEDIA_URL = 'https://creativemedia'
+const MEDIA_URL_FULL = 'https://creativemedia{0}-rai-it.akamaized.net/'
+const PATTERN = /ostr(?<number>\d+)\/(?<file>.*?mp\d)/
+
 async function resolveMp3(relinker: string) {
   const res = await fetchT(relinker, {
     method: 'HEAD',
     redirect: 'follow'
   })
-  return res.url
+  let url = res.url
+  if (!url.startsWith(MEDIA_URL)) {
+    const { number, file } = PATTERN.exec(url)?.groups ?? {}
+    if (!file) throw new Error(`Could not resolve ${url}`)
+    url = format(MEDIA_URL_FULL, number ?? 3) + file
+  }
+  return url
 }
 
 async function isAlive(url: string) {
