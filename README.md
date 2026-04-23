@@ -106,7 +106,7 @@ https://www.raiplaysound.it/:type/:name.json
 - Generic endpoint for any program
 - No scraping, no headless browser, no fragile selectors
 - No transcoding or storage required
-- Exposes an `/health` endpoint
+- Exposes an `/rss/health` endpoint
 - Rate limits requests so that your server doesn't burn down
 - Fast and lightweight
 
