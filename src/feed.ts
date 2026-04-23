@@ -52,7 +52,10 @@ async function buildFeed(program: string) {
     link: BASE + data.podcast_info.weblink,
     language: 'it',
     image: BASE + data.podcast_info.image,
-    updated: new Date()
+    updated: new Date(),
+    generator: 'https://github.com/frammenti/raiplaysoundrss',
+    feed: `https://api.frammenti.dev/rss/${program}.xml`,
+    podcast: true
   })
 
   if (!cache[program]) cache[program] = {}
@@ -109,15 +112,17 @@ async function buildFeed(program: string) {
   for (const item of items) {
     const ep = episodes.find((e: any) => e.uniquename === item.id)
 
+    console.log(ep.episode_title)
+
     feed.addItem({
-      title: ep.title,
+      title: ep.episode_title ?? ep.title,
       id: item.id,
       link: BASE + ep.weblink,
       description: ep.description,
       date: new Date(item.date),
       enclosure: {
         url: item.mp3,
-        type: 'audio/mpeg'
+        type: item.mp3.endsWith('mp3') ? 'audio/mpeg' : 'audio/mp4'
       }
     })
   }
