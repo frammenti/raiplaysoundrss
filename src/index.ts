@@ -8,7 +8,7 @@ import { checkHash } from './hash.js'
 import { duration } from './utils.js'
 
 const fastify = Fastify({
-  connectionTimeout: 10_000, // 10s
+  connectionTimeout: 600_000, // 10 minutes
   keepAliveTimeout: 5_000,
   requestTimeout: 10_000
 })
