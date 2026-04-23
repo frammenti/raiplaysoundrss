@@ -1,5 +1,9 @@
 # RaiPlay Sound RSS
 
+<p align="center" width="100%">
+    <img width="750" height="525" alt="Example of use in the Podcasts app on Linux" title="Example of use in the Podcasts app on Linux" src="https://github.com/user-attachments/assets/85f0ef38-ad21-4d03-a35d-86f063e8c3e6" />
+</p>
+
 ## What is this?
 
 This tiny Fastify instance generates perfect RSS podcast feeds for programs on RaiPlay Sound by using their undocumented JSON endpoints instead of vendor-locking you into the tracking circus that RaiPlay Sound is.
