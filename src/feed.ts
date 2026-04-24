@@ -36,7 +36,7 @@ async function isAlive(url: string) {
   }
 }
 
-async function buildFeed(program: string) {
+async function buildFeed(program: string, forceRefresh: boolean = false) {
   const start = performance.now()
 
   log('SERVE', program)
@@ -61,14 +61,17 @@ async function buildFeed(program: string) {
   if (!cache[program]) cache[program] = {}
 
   const episodes = data.block.cards
+  const currentEps = new Set<string>()
 
   for (const ep of episodes) {
     const id = ep.uniquename
+    currentEps.add(id)
     const now = Date.now()
 
     const cached = cache[program][id]
 
-    const expired = cached && now - Number(cached.resolvedAt) > MP3_TTL
+    const expired =
+      cached && (forceRefresh || now - Number(cached.resolvedAt) > MP3_TTL)
 
     if (expired) {
       const alive = await isAlive(cached.mp3)
@@ -80,8 +83,8 @@ async function buildFeed(program: string) {
         const mp3 = await resolveMp3(ep.downloadable_audio?.url ?? ep.audio.url)
 
         cache[program][id] = {
-          ...cached,
           mp3,
+          date: parseDate(ep.track_info.date, ep.create_time),
           resolvedAt: now
         }
       }
@@ -97,6 +100,14 @@ async function buildFeed(program: string) {
         resolvedAt: now
       }
     }
+  }
+
+  // Delete missing episodes from cache
+  const missing = Object.keys(cache[program]).filter(id => !currentEps.has(id))
+
+  for (const id of missing) {
+    log('DELETE', program, id)
+    delete cache[program][id]
   }
 
   // Save cache after refresh

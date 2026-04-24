@@ -46,6 +46,16 @@ fastify.get<{ Params: { type: string; name: string } }>(
   }
 )
 
+fastify.get<{ Params: { type: string; name: string } }>(
+  '/rss/refresh/:type/:name',
+  async (req, reply) => {
+    const program = `${req.params.type}/${req.params.name}`
+    await buildFeed(program, true).catch(message => error(program, message))
+
+    reply.code(200).send(`Manually refreshed ${program}!`)
+  }
+)
+
 fastify.get('/rss/health', async () => {
   return {
     status: 'ok',
