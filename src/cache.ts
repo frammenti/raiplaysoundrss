@@ -1,8 +1,9 @@
 import fs from 'fs/promises'
+import path from 'path'
 
-export { cache, loadCache, saveCache }
+export { initCache, readCache, saveCache, listCache }
 
-const CACHE_FILE = './cache.json'
+const CACHE_DIR = './cache'
 
 interface Episode {
   mp3: string
@@ -10,16 +11,33 @@ interface Episode {
   resolvedAt: number | string
 }
 
-let cache: Record<string, Record<string, Episode>>
+type Cache = Record<string, Episode>
 
-async function loadCache() {
+async function initCache() {
+  await fs.mkdir(CACHE_DIR, { recursive: true })
+}
+
+async function readCache(program: string): Promise<Cache> {
+  const cacheFile = `${CACHE_DIR}/${program}.json`
   try {
-    cache = JSON.parse(await fs.readFile(CACHE_FILE, 'utf-8'))
+    return JSON.parse(await fs.readFile(cacheFile, 'utf-8'))
   } catch {
-    cache = {}
+    await fs.mkdir(path.dirname(cacheFile), { recursive: true })
+    return {}
   }
 }
 
-async function saveCache() {
-  await fs.writeFile(CACHE_FILE, JSON.stringify(cache, null, 2))
+async function saveCache(program: string, cache: Cache) {
+  const cacheFile = `${CACHE_DIR}/${program}.json`
+  await fs.writeFile(cacheFile, JSON.stringify(cache, null, 2))
+}
+
+async function listCache() {
+  return (
+    await fs.readdir(CACHE_DIR, {
+      recursive: true
+    })
+  )
+    .filter(e => e.endsWith('.json'))
+    .map(e => e.slice(0, -5))
 }

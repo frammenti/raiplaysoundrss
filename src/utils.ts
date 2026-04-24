@@ -1,11 +1,20 @@
-export { log, duration, fetchT, format, parseDate }
+export { log, duration, time, fetchT, format, parseDate, mapLimit }
 
 import { DateTime } from 'luxon'
 
-type UnitDisplay = 'short' | 'long' | 'narrow'
+const timeFormat = Intl.DateTimeFormat('en-US', {
+  dateStyle: 'medium',
+  hour12: false,
+  timeStyle: 'short',
+  timeZone: 'Europe/Rome'
+})
+
+function time(d: Date | null) {
+  return d ? timeFormat.format(d).replace(',', '') : ''
+}
 
 function log(...args: any[]) {
-  console.log(new Date().toISOString(), ...args)
+  console.log(time(new Date()).replace(',', ''), ...args)
 }
 
 function parseDate(dateStr: string, timeStr: string) {
@@ -23,6 +32,8 @@ function parseDate(dateStr: string, timeStr: string) {
     { zone: 'Europe/Rome' } // with correct time offset
   ).toJSDate()
 }
+
+type UnitDisplay = 'short' | 'long' | 'narrow'
 
 // Duration format without Temporal
 const rest = (n: number, m: number) => [Math.floor(n / m), n % m]
@@ -70,7 +81,7 @@ function createDurationFormatter(
   }
 }
 
-let duration = createDurationFormatter('en-US')
+const duration = createDurationFormatter('en-US')
 
 // Fetch with timeout
 async function fetchT(url: string, options = {}, timeout = 8000) {
@@ -90,4 +101,32 @@ async function fetchT(url: string, options = {}, timeout = 8000) {
 
 function format(str: string, ...values: any[]) {
   return str.replace(/{(\d+)}/g, (match, index) => values[index] ?? match)
+}
+
+async function mapLimit<T, R>(
+  items: Iterable<T>,
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results: Promise<R>[] = []
+  const executing = new Set<Promise<R>>()
+
+  let index = 0
+
+  for (const item of items) {
+    const currentIndex = index++
+
+    const p = Promise.resolve().then(() => fn(item, currentIndex))
+    results.push(p)
+    executing.add(p)
+
+    const clean = () => executing.delete(p)
+    p.then(clean).catch(clean)
+
+    if (executing.size >= limit) {
+      await Promise.race(executing)
+    }
+  }
+
+  return Promise.all(results)
 }

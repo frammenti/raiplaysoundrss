@@ -1,11 +1,11 @@
 import Fastify from 'fastify'
 import rateLimit from '@fastify/rate-limit'
 
-import { buildFeed } from './feed.js'
-import { cache, loadCache } from './cache.js'
+import { buildFeed, buildAll } from './feed.js'
+import { initCache } from './cache.js'
 import { status, error, getModifiedStatus } from './status.js'
 import { checkHash } from './hash.js'
-import { duration } from './utils.js'
+import { duration, time } from './utils.js'
 
 const fastify = Fastify({
   connectionTimeout: 600_000, // 10 minutes
@@ -22,7 +22,8 @@ await fastify.register(rateLimit, {
   timeWindow: '1 minute'
 })
 
-await loadCache()
+await initCache()
+buildAll()
 
 fastify.get<{ Params: { type: string; name: string } }>(
   '/rss/:type/:name.xml',
@@ -61,21 +62,25 @@ fastify.get('/rss/health', async () => {
     status: 'ok',
     runningFor: duration(Date.now() - start),
     served,
-    lastBuild: status.lastBuild,
-    programs: status.programs
+    lastBuild: time(status.lastBuild),
+    programs: Object.entries(status.programs).map(([k, v]) => [
+      k,
+      {
+        ...v,
+        lastBuild: time(v.lastBuild),
+        lastModified: time(v.lastModified)
+      }
+    ])
   }
 })
+
+// For notifications
+setInterval(
+  () => buildAll(),
+  1000 * 60 * 60 // 1h
+)
 
 await fastify.listen({
   port: PORT,
   host: '127.0.0.1'
 })
-
-setInterval(
-  () => {
-    Object.keys(cache).forEach(program => {
-      buildFeed(program).catch(message => error(program, message))
-    })
-  },
-  1000 * 60 * 60
-)

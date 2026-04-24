@@ -2,7 +2,7 @@ export { status, updateStatus, getModifiedStatus, error }
 
 interface Program {
   items: number
-  lastRefresh: Date
+  lastBuild: Date
   lastModified: Date
   errors: number
 }
@@ -23,7 +23,7 @@ function updateStatus(program: string, items: any[], modified: boolean) {
 
   status.programs[program] = {
     items: items.length,
-    lastRefresh: now,
+    lastBuild: now,
     lastModified: modified
       ? now
       : (status.programs[program]?.lastModified ?? now),

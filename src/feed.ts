@@ -1,10 +1,10 @@
 import { Feed } from 'feed'
 
-import { cache, saveCache } from './cache.js'
-import { updateStatus } from './status.js'
-import { log, duration, fetchT, format, parseDate } from './utils.js'
+import { readCache, saveCache, listCache } from './cache.js'
+import { updateStatus, error } from './status.js'
+import { log, duration, fetchT, format, parseDate, mapLimit } from './utils.js'
 
-export { buildFeed }
+export { buildFeed, buildAll }
 
 const BASE = 'https://www.raiplaysound.it'
 const MP3_TTL = 1000 * 60 * 60 * 24 * 7 // 1 week
@@ -42,7 +42,11 @@ async function buildFeed(program: string, forceRefresh: boolean = false) {
   log('SERVE', program)
 
   const url = `${BASE}/${program}.json`
-  const data = await fetchT(url).then(r => r.json())
+  const [data, cache] = await Promise.all([
+    fetchT(url).then(r => r.json()),
+    readCache(program)
+  ])
+
   let modified = false
 
   const feed = new Feed({
@@ -58,8 +62,6 @@ async function buildFeed(program: string, forceRefresh: boolean = false) {
     podcast: true
   })
 
-  if (!cache[program]) cache[program] = {}
-
   const episodes = data.block.cards
   const currentEps = new Set<string>()
 
@@ -68,7 +70,7 @@ async function buildFeed(program: string, forceRefresh: boolean = false) {
     currentEps.add(id)
     const now = Date.now()
 
-    const cached = cache[program][id]
+    const cached = cache[id]
 
     const expired =
       cached && (forceRefresh || now - Number(cached.resolvedAt) > MP3_TTL)
@@ -82,7 +84,7 @@ async function buildFeed(program: string, forceRefresh: boolean = false) {
 
         const mp3 = await resolveMp3(ep.downloadable_audio?.url ?? ep.audio.url)
 
-        cache[program][id] = {
+        cache[id] = {
           mp3,
           date: parseDate(ep.track_info.date, ep.create_time),
           resolvedAt: now
@@ -94,7 +96,7 @@ async function buildFeed(program: string, forceRefresh: boolean = false) {
 
       const mp3 = await resolveMp3(ep.downloadable_audio?.url ?? ep.audio.url)
 
-      cache[program][id] = {
+      cache[id] = {
         mp3,
         date: parseDate(ep.track_info.date, ep.create_time),
         resolvedAt: now
@@ -103,17 +105,17 @@ async function buildFeed(program: string, forceRefresh: boolean = false) {
   }
 
   // Delete missing episodes from cache
-  const missing = Object.keys(cache[program]).filter(id => !currentEps.has(id))
+  const missing = Object.keys(cache).filter(id => !currentEps.has(id))
 
   for (const id of missing) {
     log('DELETE', program, id)
-    delete cache[program][id]
+    delete cache[id]
   }
 
   // Save cache after refresh
-  await saveCache()
+  await saveCache(program, cache)
 
-  const items = Object.entries(cache[program])
+  const items = Object.entries(cache)
     .map(([id, val]) => ({
       id,
       ...val
@@ -139,4 +141,19 @@ async function buildFeed(program: string, forceRefresh: boolean = false) {
   log('DONE', `${items.length}eps in`, duration(performance.now() - start))
   updateStatus(program, items, modified)
   return feed.rss2()
+}
+
+async function buildAll() {
+  const entries = await listCache()
+
+  await mapLimit(entries, 5, async program => {
+    // Jitter
+    await new Promise(r => setTimeout(r, 50 + Math.random() * 150))
+
+    try {
+      await buildFeed(program)
+    } catch (err) {
+      error(program, (err as Error).message)
+    }
+  })
 }
