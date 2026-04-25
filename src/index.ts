@@ -74,12 +74,6 @@ fastify.get('/rss/health', async () => {
   }
 })
 
-// For notifications
-setInterval(
-  () => buildAll(),
-  1000 * 60 * 60 // 1h
-)
-
 await fastify.listen({
   port: PORT,
   host: '127.0.0.1'
