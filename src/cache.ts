@@ -11,7 +11,9 @@ interface Episode {
   resolvedAt: number | string
 }
 
-type Cache = Record<string, Episode>
+type Cache = {
+  [x: string]: Episode | undefined
+}
 
 async function initCache() {
   await fs.mkdir(CACHE_DIR, { recursive: true })
