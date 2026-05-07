@@ -38,7 +38,7 @@ fastify.get<{ Params: { type: string; name: string } }>(
     if (!modified) return reply.code(304).send()
 
     reply
-      .header('Content-Type', 'application/rss+xml')
+      .header('Content-Type', 'application/xml; charset=utf-8')
       .header('Cache-Control', 'public, max-age=300') // 5 min
       .header('ETag', etag)
       .header('Last-Modified', lastModified.toUTCString())
