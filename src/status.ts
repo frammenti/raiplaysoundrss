@@ -35,7 +35,7 @@ function getModifiedStatus(program: string) {
   return status.programs[program].lastModified
 }
 
-function error(program: string, message: string) {
-  status.programs[program].errors++
+function error(message: string, program?: string) {
   console.error(message)
+  if (program) status.programs[program].errors++
 }

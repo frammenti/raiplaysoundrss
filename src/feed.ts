@@ -157,7 +157,7 @@ async function buildAll() {
     try {
       await buildFeed(program)
     } catch (err) {
-      error(program, (err as Error).message)
+      error((err as Error).message, program)
     }
   })
 }
