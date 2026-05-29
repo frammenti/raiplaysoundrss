@@ -35,7 +35,16 @@ function getModifiedStatus(program: string) {
   return status.programs[program].lastModified
 }
 
-function error(message: string, program?: string) {
+function error(program: string, message: string) {
   console.error(message)
-  if (program) status.programs[program].errors++
+  if (!(program in status.programs)) {
+    const now = new Date()
+    status.programs[program] = {
+      items: 0,
+      lastBuild: now,
+      lastModified: now,
+      errors: 0
+    }
+  }
+  status.programs[program].errors++
 }

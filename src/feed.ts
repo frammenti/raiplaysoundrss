@@ -77,35 +77,40 @@ async function buildFeed(program: string, forceRefresh: boolean = false) {
 
   for (const ep of episodes) {
     const id = ep.uniquename
-    currentEps.add(id)
     const now = Date.now()
 
     const cached = cache[id]
 
-    if (!cached) {
-      log('NEW', program, ep.title)
-      modified = true
+    try {
+      if (!cached) {
+        const mp3 = await resolveMp3(ep.downloadable_audio?.url ?? ep.audio.url)
 
-      const mp3 = await resolveMp3(ep.downloadable_audio?.url ?? ep.audio.url)
+        log('NEW', program, ep.title)
+        modified = true
 
-      cache[id] = {
-        mp3,
-        date: parseDate(ep.track_info.date, ep.create_time),
-        resolvedAt: now
+        cache[id] = {
+          mp3,
+          date: parseDate(ep.track_info.date, ep.create_time),
+          resolvedAt: now
+        }
+      } else if (forceRefresh || now - Number(cached.resolvedAt) > MP3_TTL) {
+        const mp3 = await resolveMp3(ep.downloadable_audio?.url ?? ep.audio.url)
+
+        log('REFRESH', program, ep.title)
+
+        if (mp3 !== cached.mp3) modified = true
+
+        cache[id] = {
+          mp3,
+          date: parseDate(ep.track_info.date, ep.create_time),
+          resolvedAt: now
+        }
       }
-    } else if (forceRefresh || now - Number(cached.resolvedAt) > MP3_TTL) {
-      log('REFRESH', program, ep.title)
-
-      const mp3 = await resolveMp3(ep.downloadable_audio?.url ?? ep.audio.url)
-
-      if (mp3 !== cached.mp3) modified = true
-
-      cache[id] = {
-        mp3,
-        date: parseDate(ep.track_info.date, ep.create_time),
-        resolvedAt: now
-      }
+    } catch (err) {
+      error(program, (err as Error).message)
     }
+
+    currentEps.add(id)
   }
 
   // Delete missing episodes from cache
@@ -157,7 +162,7 @@ async function buildAll() {
     try {
       await buildFeed(program)
     } catch (err) {
-      error((err as Error).message, program)
+      error(program, (err as Error).message)
     }
   })
 }
