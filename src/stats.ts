@@ -131,3 +131,4 @@ async function getStats(
 function countStats(stats: Stats) {
   return Object.values(stats).reduce<number>((sum, n) => sum + (n ?? 0), 0)
 }
+

@@ -22,6 +22,7 @@ const fastify = Fastify({
 })
 
 const PORT: number = Number(process.env.PORT || 3000)
+const HOST: string = process.env.HOST || '127.0.0.1'
 const start = Date.now()
 let served = 0
 
@@ -112,7 +113,7 @@ fastify.get<{ Querystring: { from?: string; to?: string } }>(
 
 await fastify.listen({
   port: PORT,
-  host: '127.0.0.1'
+  host: HOST
 })
 
 const shutdown = async () => {
