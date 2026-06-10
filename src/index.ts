@@ -5,6 +5,14 @@ import { buildFeed, buildAll } from './feed.js'
 import { initCache } from './cache.js'
 import { status, error, getModifiedStatus } from './status.js'
 import { checkHash } from './hash.js'
+import {
+  initStats,
+  updateStats,
+  flushStats,
+  getStats,
+  countStats,
+  today
+} from './stats.js'
 import { duration, time } from './utils.js'
 
 const fastify = Fastify({
@@ -23,6 +31,7 @@ await fastify.register(rateLimit, {
 })
 
 await initCache()
+await initStats()
 buildAll()
 
 fastify.get<{ Params: { type: string; name: string } }>(
@@ -30,6 +39,8 @@ fastify.get<{ Params: { type: string; name: string } }>(
   async (req, reply) => {
     const program = `${req.params.type}/${req.params.name}`
     const xml = await buildFeed(program)
+
+    updateStats(program)
 
     const lastModified = getModifiedStatus(program)
 
@@ -63,6 +74,7 @@ fastify.get('/rss/health', async () => {
     runningFor: duration(Date.now() - start),
     served,
     lastBuild: time(status.lastBuild),
+    errors: status.errors,
     programs: Object.entries(status.programs).map(([k, v]) => [
       k,
       {
@@ -74,7 +86,45 @@ fastify.get('/rss/health', async () => {
   }
 })
 
+fastify.get<{ Querystring: { from?: string; to?: string } }>(
+  '/rss/stats',
+  async (req, reply) => {
+    const { from, to } = req.query
+
+    for (const date of [from, to]) {
+      if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return reply
+          .code(400)
+          .send({ error: `Invalid date '${date}', expected YYYY-MM-DD` })
+      }
+    }
+
+    const programs = await getStats(from, to)
+
+    return {
+      from: from ?? '2026-06-10', // stats collection start date
+      to: to ?? today(),
+      total: countStats(programs),
+      programs
+    }
+  }
+)
+
 await fastify.listen({
   port: PORT,
   host: '127.0.0.1'
 })
+
+const shutdown = async () => {
+  try {
+    await fastify.close()
+    await flushStats()
+  } catch (err) {
+    console.error(err)
+  } finally {
+    process.exit(0)
+  }
+}
+
+process.on('SIGTERM', shutdown)
+process.on('SIGINT', shutdown)

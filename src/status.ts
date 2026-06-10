@@ -9,11 +9,13 @@ interface Program {
 
 interface Status {
   lastBuild: Date | null
+  errors: number
   programs: Record<string, Program>
 }
 
 const status: Status = {
   lastBuild: null,
+  errors: 0,
   programs: {}
 }
 
@@ -46,5 +48,6 @@ function error(program: string, message: string) {
       errors: 0
     }
   }
+  status.errors++
   status.programs[program].errors++
 }
