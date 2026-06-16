@@ -1,35 +1,43 @@
 # RaiPlay Sound RSS
 
 <p align="center" width="100%">
-    <img width="750" height="525" alt="Example of use in the Podcasts app on Linux" title="Example of use in the Podcasts app on Linux" src="https://github.com/user-attachments/assets/85f0ef38-ad21-4d03-a35d-86f063e8c3e6" />
+    <img width="750" height="525" alt="Example of use in the Podcasts app on Linux" title="Example of use in the GNOME Podcasts app on Linux" src="https://github.com/user-attachments/assets/85f0ef38-ad21-4d03-a35d-86f063e8c3e6" />
 </p>
 
 ## What is this?
 
-This tiny Fastify instance generates perfect RSS podcast feeds for programs on RaiPlay Sound by using their undocumented JSON endpoints instead of vendor-locking you into the tracking circus that RaiPlay Sound is.
+This Fastify service generates always up to date RSS podcast feeds for programs on RaiPlay Sound. It uses their undocumented JSON endpoints instead of vendor-locking you into the tracking circus that RaiPlay Sound is.
+
+Unlike tools that periodically rebuild static feeds, this service is **reactive** and regenerates feeds on demand only when a client requests them, typically when you open your podcast app.
 
 It exposes endpoints structured like:
 
 ```
-/rss/:type/:name.xml
+/:type/:name
 ```
 
 for example:
 
 ```
-/rss/programmi/battiti.xml
+/programmi/battiti
 ```
 
-## Where do I find the program type and name?
+> [!NOTE]
+> An earlier version of the API required paths structured as `/rss/programmi/battiti.xml`. The structure has been simplified, but the old paths still work.
 
-Check on the website:
+## Why?
 
-```
-https://www.raiplaysound.it/programmi/battiti
-                            ↑ type ↑  ↑ name ↑
-```
+RaiPlay Sound provides:
 
-Works with _programmi_, _audiolibri_, _playlist_... (not _dirette_)
+- structured JSON APIs with full metadata
+- direct downloadable audio (MP3)
+
+…but:
+
+- official RSS feeds were abandoned to force you to use their proprietary app
+- content is locked behind their web player and tracking-heavy frontend
+
+This service restores open access to that content through standard podcast tools, as was the case until 2020.
 
 ## What do I need to make this work?
 
@@ -46,27 +54,27 @@ npm run start
 Then open:
 
 ```
-http://localhost:3000/rss/programmi/battiti.xml
+http://localhost:3000/programmi/battiti
 ```
 
 Run it behind a reverse proxy (Caddy, Nginx, etc.) and bind it to localhost.
-Do not expose the service port directly.
+Do not expose Node's service port directly.
 
 Or, keep reading.
 
-## Why?
+## Where do I find the program type and name?
 
-RaiPlay Sound provides:
+Check on the website:
 
-- structured JSON APIs with full metadata
-- direct downloadable audio (MP3)
+```
+https://www.raiplaysound.it/programmi/battiti
+                            ↑ type ↑  ↑ name ↑
+```
 
-…but:
+Works with _programmi_, _audiolibri_, _playlist_... (not _dirette_)
 
-- official RSS feeds were abandoned to force you to use their proprietary app
-- content is locked behind their web player and tracking-heavy frontend
-
-This service restores a simple, open, and standard way to access that content.
+> [!NOTE]
+> Some _programmi_ are not structured as a **list of episodes** but rather as a **collection of playlists**. You can only get the feed for the individual playlists by using the slug found on each playlist’s page. This is the case for shows like “Gettoni di Scienza” and “Alle otto della sera.”
 
 ## How it works
 
@@ -83,10 +91,10 @@ https://www.raiplaysound.it/:type/:name.json
 - publication date
 - metadata
 
-3. Resolve audio:
+3. Resolve new audio:
 
-- follow `downloadable_audio.url`
-- extract final MP3 from CDN
+- follow either `downloadable_audio.url` or `audio.url`
+- extract a stable MP3 url (or MP4 if unavailable) from CDN
 
 4. Cache results:
 
@@ -96,24 +104,20 @@ https://www.raiplaysound.it/:type/:name.json
 5. Generate RSS:
 
 - RSS 2.0 + iTunes extensions
-- compatible with podcast apps and feed readers
+- compatible with podcast apps
 
-## What it does right
+Highlights:
 
-- Resolves CDN queries for stable media urls
-- Incremental updates (only processes new episodes)
-- Persistent cache (no network overhead)
 - Generic endpoint for any program
+- Exposes an `/health` endpoint for debugging and a `/stats` endpoint for fun
+- Processes queries in a limited concurrent pool so that new shows initialization is fast without flooding the upstream service with hundreds of simultaneous requests
+- Rate limits requests so that your server doesn't burn down
 - No scraping, no headless browser, no fragile selectors
 - No transcoding or storage required
-- Exposes an `/rss/health` endpoint
-- Rate limits requests so that your server doesn't burn down
-- Fast and lightweight
 
-## Is this hacking?
+## Legal notice
 
-This project does not “hack” anything.
-It simply uses the same data sources exposed by the frontend, but without the unnecessary complexity, tracking, and artificially imposed restrictions.
+This project only consumes data and media URLs already exposed by RaiPlay Sound's public frontend. It does not bypass authentication, DRM, or access controls.
 
 ## Limitations
 

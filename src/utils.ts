@@ -1,4 +1,4 @@
-export { log, duration, time, fetchT, format, parseDate, mapLimit }
+export { duration, time, fetchT, format, parseDate, poolLimit }
 
 import { DateTime } from 'luxon'
 
@@ -11,10 +11,6 @@ const timeFormat = Intl.DateTimeFormat('en-US', {
 
 function time(d: Date | null) {
   return d ? timeFormat.format(d).replace(',', '') : ''
-}
-
-function log(...args: any[]) {
-  console.log(time(new Date()).replace(',', ''), ...args)
 }
 
 function parseDate(dateStr: string, timeStr: string) {
@@ -103,28 +99,29 @@ function format(str: string, ...values: any[]) {
   return str.replace(/{(\d+)}/g, (match, index) => values[index] ?? match)
 }
 
-async function mapLimit<T, R>(
+async function poolLimit<T, R>(
   items: Iterable<T>,
   limit: number,
-  fn: (item: T, index: number) => Promise<R>
-): Promise<R[]> {
-  const results: Promise<R>[] = []
-  const executing = new Set<Promise<R>>()
-
-  let index = 0
+  fn: (item: T) => Promise<R>
+): Promise<(R | undefined)[]> {
+  const pool = new Set<Promise<R | undefined>>()
+  const results: Promise<R | undefined>[] = []
 
   for (const item of items) {
-    const currentIndex = index++
+    // With this pattern an error in the callback is turned into a handled rejected promise
+    const p = Promise.resolve()
+      .then(() => fn(item))
+      .catch(() => undefined)
 
-    const p = Promise.resolve().then(() => fn(item, currentIndex))
     results.push(p)
-    executing.add(p)
+    pool.add(p)
 
-    const clean = () => executing.delete(p)
-    p.then(clean).catch(clean)
+    // The promise removes itself from the pool when resolved
+    const clean = () => pool.delete(p)
+    p.finally(clean)
 
-    if (executing.size >= limit) {
-      await Promise.race(executing)
+    if (pool.size >= limit) {
+      await Promise.race(pool)
     }
   }
 

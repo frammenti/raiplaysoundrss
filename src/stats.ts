@@ -1,6 +1,7 @@
 import fs from 'fs/promises'
 import { DateTime } from 'luxon'
-import { mapLimit } from './utils.js'
+import { logger } from './logger.js'
+import { poolLimit } from './utils.js'
 
 export { initStats, updateStats, flushStats, getStats, countStats, today }
 
@@ -19,27 +20,28 @@ let currentDay = today()
 let dirty = false
 
 async function saveStats(day: string, stats: Stats) {
+  const snapshot = { ...stats }
   const statsFile = `${STATS_DIR}/${day}.json`
+
   try {
     // Atomic rename, so a crash mid-write cannot truncate the file
-    await fs.writeFile(`${statsFile}.tmp`, JSON.stringify(stats, null, 2))
+    await fs.writeFile(`${statsFile}.tmp`, JSON.stringify(snapshot, null, 2))
     await fs.rename(`${statsFile}.tmp`, statsFile)
   } catch (err) {
-    console.error(err)
+    logger.error(`stats ${(err as Error).message}`)
   }
 }
 
+// Can be called either synchronously or asynchronously
 // Can run in sync because if the write happens it is never on the same day
-function syncDay() {
+async function syncDay() {
   const day = today()
   if (currentDay !== day) {
     // Final flush of the ended day
-    const saved = saveStats(currentDay, dailyStats)
+    await saveStats(currentDay, dailyStats)
     currentDay = day
     dailyStats = {}
     dirty = false
-    // Can be called either synchronously or asynchronously
-    return saved
   }
 }
 
@@ -73,7 +75,7 @@ async function initStats() {
   // Rebuild total from daily files as the source of truth
   const days = await listStats()
   // Process batches of json files
-  await mapLimit(days, BATCH_SIZE, async day => {
+  await poolLimit(days, BATCH_SIZE, async day => {
     const stats = await readStats(day)
     for (const [program, count] of Object.entries(stats)) {
       totalStats[program] = (totalStats[program] ?? 0) + (count ?? 0)
@@ -118,7 +120,7 @@ async function getStats(
 
   const result: Stats = to >= currentDay ? { ...dailyStats } : {}
 
-  await mapLimit(days, BATCH_SIZE, async day => {
+  await poolLimit(days, BATCH_SIZE, async day => {
     const stats = await readStats(day)
     for (const [program, count] of Object.entries(stats)) {
       result[program] = (result[program] ?? 0) + (count ?? 0)
@@ -131,4 +133,3 @@ async function getStats(
 function countStats(stats: Stats) {
   return Object.values(stats).reduce<number>((sum, n) => sum + (n ?? 0), 0)
 }
-

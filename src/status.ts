@@ -1,5 +1,7 @@
 export { status, updateStatus, getModifiedStatus, error }
 
+import { logger } from './logger.js'
+
 interface Program {
   items: number
   lastBuild: Date
@@ -38,7 +40,7 @@ function getModifiedStatus(program: string) {
 }
 
 function error(program: string, message: string) {
-  console.error(message)
+  logger.error(`${program} ${message}`)
   if (!(program in status.programs)) {
     const now = new Date()
     status.programs[program] = {

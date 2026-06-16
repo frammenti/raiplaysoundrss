@@ -1,8 +1,10 @@
 import { Feed } from 'feed'
 
 import { readCache, saveCache, listCache } from './cache.js'
+import { logger } from './logger.js'
 import { updateStatus, error } from './status.js'
-import { log, duration, fetchT, format, parseDate, mapLimit } from './utils.js'
+import { NotFoundError, BadGatewayError } from './errors.js'
+import { duration, fetchT, format, parseDate, poolLimit } from './utils.js'
 
 export { buildFeed, buildAll }
 
@@ -12,6 +14,18 @@ const MP3_TTL = 1000 * 60 * 60 * 24 * 7 // 1 week
 const MEDIA_URL = 'https://creativemedia'
 const MEDIA_URL_FULL = 'https://creativemedia{0}-rai-it.akamaized.net/'
 const PATTERN = /ostr(?<number>\d+)\/(?<file>.*?mp\d)/
+
+async function getFeedData(url: string, program: string) {
+  const res = await fetchT(url)
+  switch (res.status) {
+    case 200:
+      return res.json()
+    case 404:
+      throw new NotFoundError(`${program} not found in RaiPlay Sound catalog`)
+    default:
+      throw new BadGatewayError(`Upstream RaiPlay Sound error ${res.status}`)
+  }
+}
 
 async function isAlive(url: string) {
   try {
@@ -32,7 +46,7 @@ async function resolveMp3(relinker: string) {
   // Derive the CDN url
   if (!url.startsWith(MEDIA_URL)) {
     const { number, file } = PATTERN.exec(url)?.groups ?? {}
-    if (!file) throw new Error(`Could not resolve ${url}`)
+    if (!file) throw new Error(`could not resolve ${url}`)
 
     url = format(MEDIA_URL_FULL, number ?? 3) + file
   }
@@ -49,11 +63,11 @@ async function resolveMp3(relinker: string) {
 async function buildFeed(program: string, forceRefresh: boolean = false) {
   const start = performance.now()
 
-  log('SERVE', program)
+  logger.serve(program)
 
   const url = `${BASE}/${program}.json`
   const [data, cache] = await Promise.all([
-    fetchT(url).then(r => r.json()),
+    getFeedData(url, program),
     readCache(program)
   ])
 
@@ -68,14 +82,14 @@ async function buildFeed(program: string, forceRefresh: boolean = false) {
     image: BASE + data.podcast_info.image,
     updated: new Date(),
     generator: 'https://github.com/frammenti/raiplaysoundrss',
-    feed: `https://api.frammenti.dev/rss/${program}.xml`,
+    feed: `https://rss.frammenti.dev/${program}`,
     podcast: true
   })
 
   const episodes = data.block.cards
   const currentEps = new Set<string>()
 
-  for (const ep of episodes) {
+  await poolLimit(episodes, 5, async (ep: any) => {
     const id = ep.uniquename
     const now = Date.now()
 
@@ -83,9 +97,13 @@ async function buildFeed(program: string, forceRefresh: boolean = false) {
 
     try {
       if (!cached) {
-        const mp3 = await resolveMp3(ep.downloadable_audio?.url ?? ep.audio.url)
+        const episodeUrl = ep.downloadable_audio?.url ?? ep.audio?.url
 
-        log('NEW', program, ep.title)
+        if (!episodeUrl) throw new Error(`missing url for ${id}`)
+
+        const mp3 = await resolveMp3(episodeUrl)
+
+        logger.new(`${program} ${ep.title}`)
         modified = true
 
         cache[id] = {
@@ -94,9 +112,13 @@ async function buildFeed(program: string, forceRefresh: boolean = false) {
           resolvedAt: now
         }
       } else if (forceRefresh || now - Number(cached.resolvedAt) > MP3_TTL) {
-        const mp3 = await resolveMp3(ep.downloadable_audio?.url ?? ep.audio.url)
+        const episodeUrl = ep.downloadable_audio?.url ?? ep.audio?.url
 
-        log('REFRESH', program, ep.title)
+        if (!episodeUrl) throw new Error(`missing url for ${id}`)
+
+        const mp3 = await resolveMp3(episodeUrl)
+
+        logger.refresh(`${program} ${ep.title}`)
 
         if (mp3 !== cached.mp3) modified = true
 
@@ -111,13 +133,17 @@ async function buildFeed(program: string, forceRefresh: boolean = false) {
     }
 
     currentEps.add(id)
-  }
+  })
 
   // Delete missing episodes from cache
-  const missing = Object.keys(cache).filter(id => !currentEps.has(id))
+  const entries = Object.keys(cache)
+
+  if (entries.length === 0) logger.warn(`${program} has no episodes`)
+
+  const missing = entries.filter(id => !currentEps.has(id))
 
   for (const id of missing) {
-    log('DELETE', program, id)
+    logger.delete(`${program} ${id}`)
     delete cache[id]
   }
 
@@ -147,15 +173,19 @@ async function buildFeed(program: string, forceRefresh: boolean = false) {
     })
   }
 
-  log('DONE', `${items.length}eps in`, duration(performance.now() - start))
+  logger.done(
+    `${program} ${items.length}eps in ${duration(performance.now() - start)}`
+  )
   updateStatus(program, items, modified)
   return feed.rss2()
 }
 
 async function buildAll() {
+  const start = performance.now()
   const entries = await listCache()
+  logger.info(`Updating catalog:\n      ${entries.join('\n      ')}`)
 
-  await mapLimit(entries, 5, async program => {
+  await poolLimit(entries, 3, async program => {
     // Jitter
     await new Promise(r => setTimeout(r, 50 + Math.random() * 150))
 
@@ -165,4 +195,5 @@ async function buildAll() {
       error(program, (err as Error).message)
     }
   })
+  logger.info(`Updated catalog in ${duration(performance.now() - start)}`)
 }
