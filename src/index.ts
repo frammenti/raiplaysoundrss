@@ -34,7 +34,7 @@ fastify.log.info('What a beautiful day to be alive')
 const PORT: number = Number(process.env.PORT || 3000)
 const HOST: string = process.env.HOST || '127.0.0.1'
 const start = Date.now()
-let served = 0
+const served = { value: 0 }
 
 await fastify.register(rateLimit, {
   max: 30,
