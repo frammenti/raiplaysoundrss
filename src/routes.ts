@@ -68,7 +68,7 @@ const routes: FastifyPluginAsync<{
     return {
       status: 'ok',
       runningFor: duration(Date.now() - start),
-      served,
+      served: served.value,
       lastBuild: time(status.lastBuild),
       errors: status.errors,
       programs: Object.entries(status.programs).map(([k, v]) => [
