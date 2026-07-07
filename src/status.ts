@@ -1,19 +1,7 @@
 export { status, updateStatus, getModifiedStatus, error }
 
 import { logger } from './logger.js'
-
-interface Program {
-  items: number
-  lastBuild: Date
-  lastModified: Date
-  errors: number
-}
-
-interface Status {
-  lastBuild: Date | null
-  errors: number
-  programs: Record<string, Program>
-}
+import type { Status } from './types.js'
 
 const status: Status = {
   lastBuild: null,

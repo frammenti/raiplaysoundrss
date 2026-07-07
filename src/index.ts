@@ -45,9 +45,14 @@ await initCache()
 await initStats()
 buildAll()
 
-// Register the same routes with no prefix and /rss prefix
+// Register the same routes with no prefix, rss and m3u prefix
 await fastify.register(routes, {
   prefix: '/rss',
+  start,
+  served
+})
+await fastify.register(routes, {
+  prefix: '/m3u',
   start,
   served
 })

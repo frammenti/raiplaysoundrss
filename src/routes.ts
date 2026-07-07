@@ -1,13 +1,12 @@
 import type { FastifyPluginAsync } from 'fastify'
 
-import { buildFeed } from './feed.js'
+import { buildProgram } from './feed.js'
 import { status, error, getModifiedStatus } from './status.js'
 import { checkHash } from './hash.js'
 import { updateStats, getStats, countStats, today } from './stats.js'
 import { ValidationError } from './errors.js'
 import { duration, time } from './utils.js'
-
-type ProgramType = 'programmi' | 'audiolibri' | 'playlist'
+import type { ProgramType } from './types.js'
 
 const schema = {
   params: {
@@ -27,27 +26,27 @@ const routes: FastifyPluginAsync<{
   prefix: string
   start: number
   served: { value: number }
-}> = async (fastify, { start, served }) => {
+}> = async (fastify, { prefix, start, served }) => {
   fastify.get<{
     Params: { type: ProgramType; name: string }
   }>(`/:type/:name`, { schema }, async (req, reply) => {
     const program = `${req.params.type}/${req.params.name.replace(/\.xml$/, '')}`
-    const xml = await buildFeed(program)
+    const feed = await buildProgram(program)
+    const { body, mime } = feed.serialize(prefix === '/m3u' ? 'm3u' : 'rss')
 
     updateStats(program)
 
     const lastModified = getModifiedStatus(program)
-
-    const { modified, etag } = checkHash(xml, req, lastModified)
+    const { modified, etag } = checkHash(body, req, lastModified)
 
     if (!modified) return reply.code(304).send()
 
     reply
-      .header('Content-Type', 'application/xml; charset=utf-8')
+      .header('Content-Type', `${mime}; charset=utf-8`)
       .header('Cache-Control', 'public, max-age=300') // 5 min
       .header('ETag', etag)
       .header('Last-Modified', lastModified.toUTCString())
-      .send(xml)
+      .send(body)
     served.value++
   })
 
@@ -56,7 +55,7 @@ const routes: FastifyPluginAsync<{
     { schema },
     async (req, reply) => {
       const program = `${req.params.type}/${req.params.name}`
-      await buildFeed(program, true).catch(err =>
+      await buildProgram(program, true).catch(err =>
         error(program, (err as Error).message)
       )
 

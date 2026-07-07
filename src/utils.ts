@@ -1,4 +1,14 @@
-export { duration, time, fetchT, format, parseDate, poolLimit }
+export {
+  duration,
+  time,
+  fetchT,
+  format,
+  parseDate,
+  parseDuration,
+  poolLimit,
+  nonNullable,
+  jitter
+}
 
 import { DateTime } from 'luxon'
 
@@ -27,6 +37,22 @@ function parseDate(dateStr: string, timeStr: string) {
     },
     { zone: 'Europe/Rome' } // with correct time offset
   ).toJSDate()
+}
+
+function parseDuration(duration: string): number {
+  const parts = duration.split(':').map(Number)
+
+  if (parts.length === 2) {
+    const [minutes, seconds] = parts
+    return minutes * 60 + seconds
+  }
+
+  if (parts.length === 3) {
+    const [hours, minutes, seconds] = parts
+    return hours * 3600 + minutes * 60 + seconds
+  }
+
+  throw new Error(`Invalid duration: ${duration}`)
 }
 
 type UnitDisplay = 'short' | 'long' | 'narrow'
@@ -126,4 +152,12 @@ async function poolLimit<T, R>(
   }
 
   return Promise.all(results)
+}
+
+function nonNullable<T>(value: T): value is NonNullable<T> {
+  return value !== null && value !== undefined
+}
+
+async function jitter() {
+  await new Promise(r => setTimeout(r, 50 + Math.random() * 150))
 }

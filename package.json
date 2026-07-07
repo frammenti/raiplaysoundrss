@@ -1,6 +1,6 @@
 {
   "name": "raiplaysoundrss",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "A real-time RSS feed generator for RaiPlay Sound podcasts",
   "keywords": [
     "rss"

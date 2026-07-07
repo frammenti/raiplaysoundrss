@@ -2,15 +2,12 @@ import fs from 'fs/promises'
 import { DateTime } from 'luxon'
 import { logger } from './logger.js'
 import { poolLimit } from './utils.js'
+import type { Stats } from './types.js'
 
 export { initStats, updateStats, flushStats, getStats, countStats, today }
 
 const STATS_DIR = './stats'
 const BATCH_SIZE = 20
-
-type Stats = {
-  [x: string]: number | undefined
-}
 
 const today = () => DateTime.now().setZone('Europe/Rome').toISODate()!
 

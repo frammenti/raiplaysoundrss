@@ -39,6 +39,17 @@ RaiPlay Sound provides:
 
 This service restores open access to that content through standard podcast tools, as was the case until 2020.
 
+## Where do I find the program type and name?
+
+Check on the website:
+
+```
+https://www.raiplaysound.it/programmi/battiti
+                            ↑ type ↑  ↑ name ↑
+```
+
+Works with _programmi_, _audiolibri_, _playlist_... (not _dirette_)
+
 ## What do I need to make this work?
 
 A Node.js server, the base for all greatness.
@@ -61,20 +72,6 @@ Run it behind a reverse proxy (Caddy, Nginx, etc.) and bind it to localhost.
 Do not expose Node's service port directly.
 
 Or, keep reading.
-
-## Where do I find the program type and name?
-
-Check on the website:
-
-```
-https://www.raiplaysound.it/programmi/battiti
-                            ↑ type ↑  ↑ name ↑
-```
-
-Works with _programmi_, _audiolibri_, _playlist_... (not _dirette_)
-
-> [!NOTE]
-> Some _programmi_ are not structured as a **list of episodes** but rather as a **collection of playlists**. You can only get the feed for the individual playlists by using the slug found on each playlist’s page. This is the case for shows like “Gettoni di Scienza” and “Alle otto della sera.”
 
 ## How it works
 
@@ -115,15 +112,15 @@ Highlights:
 - No scraping, no headless browser, no fragile selectors
 - No transcoding or storage required
 
-## Legal notice
-
-This project only consumes data and media URLs already exposed by RaiPlay Sound's public frontend. It does not bypass authentication, DRM, or access controls.
-
 ## Limitations
 
 - Depends on RaiPlay Sound’s internal API structure
 - MP3 URLs may change over time (handled via cache refresh every week)
 - No guarantee of long-term stability (as with any unofficial service, but also official, apparently)
+
+## Legal notice
+
+This project only consumes data and media URLs already exposed by RaiPlay Sound's public frontend. It does not bypass authentication, DRM, or access controls.
 
 ## Why did you make this?
 

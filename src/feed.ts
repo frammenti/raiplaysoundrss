@@ -1,12 +1,20 @@
-import { Feed } from 'feed'
-
+import { FeedSerializer } from './serializer.js'
 import { readCache, saveCache, listCache } from './cache.js'
 import { logger } from './logger.js'
 import { updateStatus, error } from './status.js'
 import { NotFoundError, BadGatewayError } from './errors.js'
-import { duration, fetchT, format, parseDate, poolLimit } from './utils.js'
+import {
+  duration,
+  fetchT,
+  format,
+  parseDate,
+  parseDuration,
+  poolLimit
+} from './utils.js'
 
-export { buildFeed, buildAll }
+import type { ProgramItem, PlaylistItem, EpisodeItem } from './types.js'
+
+export { buildProgram, buildAll }
 
 const BASE = 'https://www.raiplaysound.it'
 const MP3_TTL = 1000 * 60 * 60 * 24 * 7 // 1 week
@@ -15,7 +23,7 @@ const MEDIA_URL = 'https://creativemedia'
 const MEDIA_URL_FULL = 'https://creativemedia{0}-rai-it.akamaized.net/'
 const PATTERN = /ostr(?<number>\d+)\/(?<file>.*?mp\d)/
 
-async function getFeedData(url: string, program: string) {
+async function getFeedData(url: string, program: string): Promise<ProgramItem> {
   const res = await fetchT(url)
   switch (res.status) {
     case 200:
@@ -60,7 +68,21 @@ async function resolveMp3(relinker: string) {
   return url
 }
 
-async function buildFeed(program: string, forceRefresh: boolean = false) {
+async function expandContainer(items: PlaylistItem[]): Promise<EpisodeItem[]> {
+  // We do not make concurrent network calls here otherwise we get rate limited
+  const result: EpisodeItem[] = []
+  for (const item of items) {
+    const playlist = await getFeedData(BASE + item.path_id, item.title)
+    if (playlist.block.content_type !== 'playlist')
+      result.push(...playlist.block.cards)
+  }
+  return result
+}
+
+async function buildProgram(
+  program: string,
+  forceRefresh: boolean = false
+): Promise<FeedSerializer> {
   const start = performance.now()
 
   logger.serve(program)
@@ -73,103 +95,101 @@ async function buildFeed(program: string, forceRefresh: boolean = false) {
 
   let modified = false
 
-  const feed = new Feed({
+  const feed = new FeedSerializer({
+    program,
     title: data.podcast_info.title,
     description: data.podcast_info.description,
-    id: BASE + data.podcast_info.weblink,
-    link: BASE + data.podcast_info.weblink,
+    webpage: BASE + data.podcast_info.weblink,
     language: 'it',
     image: BASE + data.podcast_info.image,
-    updated: new Date(),
-    generator: 'https://github.com/frammenti/raiplaysoundrss',
-    feed: `https://rss.frammenti.dev/${program}`,
-    podcast: true
+    updated: new Date()
   })
 
-  const episodes = data.block.cards
+  const episodes = new Map(
+    (data.block.content_type === 'playlist'
+      ? await expandContainer(data.block.cards)
+      : data.block.cards
+    ).map(ep => [ep.uniquename, ep])
+  )
+
   const currentEps = new Set<string>()
 
-  await poolLimit(episodes, 5, async (ep: any) => {
+  await poolLimit(episodes.values(), 20, async ep => {
     const id = ep.uniquename
     const now = Date.now()
 
-    const cached = cache[id]
+    const cached = cache.get(id)
+
+    const missing = !cached
+    const expired = cached && now - cached.resolvedAt > MP3_TTL
+    const shouldRefresh = missing || expired || forceRefresh
 
     try {
-      if (!cached) {
+      if (shouldRefresh) {
         const episodeUrl = ep.downloadable_audio?.url ?? ep.audio?.url
-
         if (!episodeUrl) throw new Error(`missing url for ${id}`)
 
         const mp3 = await resolveMp3(episodeUrl)
+        const episodeString = `${program} ${ep.title}`
 
-        logger.new(`${program} ${ep.title}`)
-        modified = true
+        if (missing) {
+          logger.new(episodeString)
+          modified = true
+        } else {
+          logger.refresh(episodeString)
+          if (mp3 !== cached.mp3) modified = true
+        }
 
-        cache[id] = {
+        cache.set(id, {
           mp3,
           date: parseDate(ep.track_info.date, ep.create_time),
           resolvedAt: now
-        }
-      } else if (forceRefresh || now - Number(cached.resolvedAt) > MP3_TTL) {
-        const episodeUrl = ep.downloadable_audio?.url ?? ep.audio?.url
-
-        if (!episodeUrl) throw new Error(`missing url for ${id}`)
-
-        const mp3 = await resolveMp3(episodeUrl)
-
-        logger.refresh(`${program} ${ep.title}`)
-
-        if (mp3 !== cached.mp3) modified = true
-
-        cache[id] = {
-          mp3,
-          date: parseDate(ep.track_info.date, ep.create_time),
-          resolvedAt: now
-        }
+        })
       }
+      // Episode is not listed if an error occurred
+      currentEps.add(id)
     } catch (err) {
       error(program, (err as Error).message)
     }
-
-    currentEps.add(id)
   })
 
   // Delete missing episodes from cache
-  const entries = Object.keys(cache)
+  if (cache.size === 0) {
+    logger.warn(`${program} has no episodes`)
+  }
 
-  if (entries.length === 0) logger.warn(`${program} has no episodes`)
-
-  const missing = entries.filter(id => !currentEps.has(id))
-
-  for (const id of missing) {
-    logger.delete(`${program} ${id}`)
-    delete cache[id]
+  for (const id of cache.keys()) {
+    if (!currentEps.has(id)) {
+      logger.delete(`${program} ${id}`)
+      modified = true
+      cache.delete(id)
+    }
   }
 
   // Save cache after refresh
   await saveCache(program, cache)
 
-  const items = Object.entries(cache)
-    .map(([id, val]) => ({
+  const items = [...cache.entries()]
+    .map(([id, ep]) => ({
       id,
-      ...val!
+      ...ep!
     }))
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .sort((a, b) => b.date.getTime() - a.date.getTime())
+
+  cache.clear()
 
   for (const item of items) {
-    const ep = episodes.find((e: any) => e.uniquename === item.id)
+    const ep = episodes.get(item.id)!
 
-    feed.addItem({
-      title: ep.episode_title ?? ep.title,
+    feed.add({
       id: item.id,
-      link: BASE + ep.weblink,
+      title: ep.episode_title ?? ep.title,
       description: ep.description,
-      date: new Date(item.date),
-      enclosure: {
-        url: item.mp3,
-        type: item.mp3.endsWith('3') ? 'audio/mpeg' : 'audio/mp4'
-      }
+      webpage: BASE + ep.weblink,
+      published: new Date(item.date),
+      audio: item.mp3,
+      mime: item.mp3.endsWith('3') ? 'audio/mpeg' : 'audio/mp4',
+      duration: ep.audio.duration ? parseDuration(ep.audio.duration) : undefined
     })
   }
 
@@ -177,7 +197,7 @@ async function buildFeed(program: string, forceRefresh: boolean = false) {
     `${program} ${items.length}eps in ${duration(performance.now() - start)}`
   )
   updateStatus(program, items, modified)
-  return feed.rss2()
+  return feed
 }
 
 async function buildAll() {
@@ -185,15 +205,14 @@ async function buildAll() {
   const entries = await listCache()
   logger.info(`Updating catalog:\n      ${entries.join('\n      ')}`)
 
-  await poolLimit(entries, 3, async program => {
-    // Jitter
-    await new Promise(r => setTimeout(r, 50 + Math.random() * 150))
-
+  // We do not build programs in parallel otherwise we get rate limited
+  for (const program of entries) {
     try {
-      await buildFeed(program)
+      await buildProgram(program)
     } catch (err) {
       error(program, (err as Error).message)
     }
-  })
+  }
+
   logger.info(`Updated catalog in ${duration(performance.now() - start)}`)
 }

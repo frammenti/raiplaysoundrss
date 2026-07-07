@@ -7,9 +7,9 @@ function generateETag(content: string) {
   return crypto.createHash('sha1').update(content).digest('hex')
 }
 
-function checkHash(xml: string, req: FastifyRequest, lastModified: Date) {
+function checkHash(content: string, req: FastifyRequest, lastModified: Date) {
   let modified = true
-  const etag = generateETag(xml)
+  const etag = generateETag(content)
 
   const ifNoneMatch = req.headers['if-none-match']
   const ifModifiedSince = req.headers['if-modified-since']
