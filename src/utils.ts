@@ -158,6 +158,8 @@ function nonNullable<T>(value: T): value is NonNullable<T> {
   return value !== null && value !== undefined
 }
 
-async function jitter() {
-  await new Promise(r => setTimeout(r, 50 + Math.random() * 150))
+async function jitter(factor: number = 1) {
+  await new Promise(r =>
+    setTimeout(r, 50 * factor + Math.random() * 150 * factor)
+  )
 }

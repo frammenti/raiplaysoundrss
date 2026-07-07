@@ -122,6 +122,7 @@ interface EpisodeItem {
   duration_small_format: string
   track_info: {
     date: string
+    episode_number: `${number}`
   }
   create_time: string
 }

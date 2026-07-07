@@ -71,7 +71,6 @@ async function resolveMp3(relinker: string) {
 
 async function expandContainer(items: PlaylistItem[]): Promise<EpisodeItem[]> {
   // We do not make concurrent network calls here otherwise we get rate limited
-  await jitter()
   const result: EpisodeItem[] = []
   for (const item of items) {
     const playlist = await getFeedData(BASE + item.path_id, item.title)
@@ -116,7 +115,7 @@ async function buildProgram(
 
   const currentEps = new Set<string>()
 
-  await poolLimit(episodes.values(), 20, async ep => {
+  await poolLimit(episodes.values(), 15, async ep => {
     const id = ep.uniquename
     const now = Date.now()
 
@@ -131,6 +130,8 @@ async function buildProgram(
         const episodeUrl = ep.downloadable_audio?.url ?? ep.audio?.url
         if (!episodeUrl) throw new Error(`missing url for ${id}`)
 
+        await jitter(2.5)
+
         const mp3 = await resolveMp3(episodeUrl)
         const episodeString = `${program} ${ep.title}`
 
@@ -142,9 +143,17 @@ async function buildProgram(
           if (mp3 !== cached.mp3) modified = true
         }
 
+        const date = parseDate(ep.track_info.date, ep.create_time)
+
+        // Playlist episodes often share the same/random-but-close publication timestamps.
+        // We convert the episode number into +10 min so sorting remains stable.
+        // For non-playlists episode_number is 0
+        const n = Number(ep.track_info.episode_number)
+        if (Number.isFinite(n)) date.setMilliseconds(n * 60_000 * 10)
+
         cache.set(id, {
           mp3,
-          date: parseDate(ep.track_info.date, ep.create_time),
+          date,
           resolvedAt: now
         })
       }
@@ -209,7 +218,6 @@ async function buildAll() {
 
   // We do not build programs in parallel otherwise we get rate limited
   for (const program of entries) {
-    await jitter()
     try {
       await buildProgram(program)
     } catch (err) {
