@@ -3,7 +3,7 @@ import rateLimit from '@fastify/rate-limit'
 
 import { initCache } from './cache.js'
 import { initStats, flushStats } from './stats.js'
-import { buildAll } from './feed.js'
+//import { buildAll } from './feed.js'
 import routes from './routes.js'
 import { logger } from './logger.js'
 import type { HttpError } from './errors.js'
@@ -43,7 +43,8 @@ await fastify.register(rateLimit, {
 
 await initCache()
 await initStats()
-buildAll()
+// We stop refreshing the cache on startup because the catalog has become too big
+// buildAll()
 
 // Register the same routes with no prefix, rss and m3u prefix
 await fastify.register(routes, {
