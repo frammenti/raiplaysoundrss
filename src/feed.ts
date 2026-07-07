@@ -7,6 +7,7 @@ import {
   duration,
   fetchT,
   format,
+  jitter,
   parseDate,
   parseDuration,
   poolLimit
@@ -70,6 +71,7 @@ async function resolveMp3(relinker: string) {
 
 async function expandContainer(items: PlaylistItem[]): Promise<EpisodeItem[]> {
   // We do not make concurrent network calls here otherwise we get rate limited
+  await jitter()
   const result: EpisodeItem[] = []
   for (const item of items) {
     const playlist = await getFeedData(BASE + item.path_id, item.title)
@@ -207,6 +209,7 @@ async function buildAll() {
 
   // We do not build programs in parallel otherwise we get rate limited
   for (const program of entries) {
+    await jitter()
     try {
       await buildProgram(program)
     } catch (err) {
