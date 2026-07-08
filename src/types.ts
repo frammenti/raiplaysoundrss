@@ -5,7 +5,6 @@ export type {
   ProgramType,
   Cache,
   CachedEpisode,
-  Status,
   Stats,
   ProgramItem,
   PlaylistItem,
@@ -52,25 +51,10 @@ type Cache = Map<string, CachedEpisode>
 
 /*
 -------------------------------------------------------------------------------
-Status and stats
+Stats
 -------------------------------------------------------------------------------
 */
-interface ProgramStatus {
-  items: number
-  lastBuild: Date
-  lastModified: Date
-  errors: number
-}
-
-interface Status {
-  lastBuild: Date | null
-  errors: number
-  programs: Record<string, ProgramStatus>
-}
-
-type Stats = {
-  [x: string]: number | undefined
-}
+type Stats = Record<string, number>
 
 /*
 -------------------------------------------------------------------------------

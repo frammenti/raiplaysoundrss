@@ -1,7 +1,6 @@
 import { FeedSerializer } from './serializer.js'
 import { readCache, saveCache, listCache } from './cache.js'
 import { logger } from './logger.js'
-import { updateStatus, error } from './status.js'
 import { NotFoundError, BadGatewayError } from './errors.js'
 import {
   duration,
@@ -14,6 +13,7 @@ import {
 } from './utils.js'
 
 import type { ProgramItem, PlaylistItem, EpisodeItem } from './types.js'
+import type { Status } from './status.js'
 
 export { buildProgram, buildAll }
 
@@ -82,6 +82,7 @@ async function expandContainer(items: PlaylistItem[]): Promise<EpisodeItem[]> {
 
 async function buildProgram(
   program: string,
+  status: Status,
   forceRefresh: boolean = false
 ): Promise<FeedSerializer> {
   const start = performance.now()
@@ -160,7 +161,7 @@ async function buildProgram(
       // Episode is not listed if an error occurred
       currentEps.add(id)
     } catch (err) {
-      error(program, (err as Error).message)
+      status.error(program, (err as Error).message)
     }
   })
 
@@ -183,14 +184,17 @@ async function buildProgram(
   const items = [...cache.entries()]
     .map(([id, ep]) => ({
       id,
-      ...ep!
+      ...ep
     }))
     .sort((a, b) => b.date.getTime() - a.date.getTime())
 
   cache.clear()
 
   for (const item of items) {
-    const ep = episodes.get(item.id)!
+    const ep = episodes.get(item.id)
+
+    // Fail loudly in case of cache mismatch
+    if (!ep) throw new Error(`${program} episode ${item.id} not in cache`)
 
     feed.add({
       id: item.id,
@@ -207,11 +211,11 @@ async function buildProgram(
   logger.done(
     `${program} ${items.length}eps in ${duration(performance.now() - start)}`
   )
-  updateStatus(program, items, modified)
+  status.update(program, items.length, modified)
   return feed
 }
 
-async function buildAll() {
+async function buildAll(status: Status) {
   const start = performance.now()
   const entries = await listCache()
   logger.info(`Updating catalog:\n      ${entries.join('\n      ')}`)
@@ -219,9 +223,9 @@ async function buildAll() {
   // We do not build programs in parallel otherwise we get rate limited
   for (const program of entries) {
     try {
-      await buildProgram(program)
+      await buildProgram(program, status)
     } catch (err) {
-      error(program, (err as Error).message)
+      status.error(program, (err as Error).message)
     }
   }
 

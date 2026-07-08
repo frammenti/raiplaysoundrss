@@ -1,12 +1,11 @@
 import type { FastifyPluginAsync } from 'fastify'
 
 import { buildProgram } from './feed.js'
-import { status, error, getModifiedStatus } from './status.js'
 import { checkHash } from './hash.js'
-import { updateStats, getStats, countStats, today } from './stats.js'
-import { ValidationError } from './errors.js'
+import { updateStats, getStats, countStats, today, yesterday } from './stats.js'
 import { duration, time } from './utils.js'
 import type { ProgramType } from './types.js'
+import type { Status } from './status.js'
 
 const schema = {
   params: {
@@ -24,9 +23,8 @@ const schema = {
 
 const routes: FastifyPluginAsync<{
   prefix: string
-  start: number
-  served: { value: number }
-}> = async (fastify, { prefix, start, served }) => {
+  status: Status
+}> = async (fastify, { prefix, status }) => {
   fastify.get<{
     Params: { type: ProgramType; name: string }
   }>(`/:type/:name`, { schema }, async (req, reply) => {
@@ -36,27 +34,28 @@ const routes: FastifyPluginAsync<{
 
     updateStats(program)
 
-    const lastModified = getModifiedStatus(program)
-    const { modified, etag } = checkHash(body, req, lastModified)
+      const lastModified = status.getModifiedStatus(program)
+      const { modified, etag } = checkHash(body, req, lastModified)
 
     if (!modified) return reply.code(304).send()
 
-    reply
-      .header('Content-Type', `${mime}; charset=utf-8`)
-      .header('Cache-Control', 'public, max-age=300') // 5 min
-      .header('ETag', etag)
-      .header('Last-Modified', lastModified.toUTCString())
-      .send(body)
-    served.value++
-  })
+      reply
+        .header('Content-Type', `${mime}; charset=utf-8`)
+        .header('Cache-Control', 'public, max-age=300') // 5 min
+        .header('ETag', etag)
+        .header('Last-Modified', lastModified.toUTCString())
+        .send(body)
+      status.served++
+    }
+  )
 
   fastify.get<{ Params: { type: ProgramType; name: string } }>(
     '/refresh/:type/:name',
     { schema },
     async (req, reply) => {
       const program = `${req.params.type}/${req.params.name}`
-      await buildProgram(program, true).catch(err =>
-        error(program, (err as Error).message)
+      await buildProgram(program, status, true).catch(err =>
+        status.error(program, (err as Error).message)
       )
 
       reply.code(200).send(`Manually refreshed ${program}!`)
@@ -66,11 +65,11 @@ const routes: FastifyPluginAsync<{
   fastify.get('/health', async () => {
     return {
       status: 'ok',
-      runningFor: duration(Date.now() - start),
-      served: served.value,
+      runningFor: duration(Date.now() - status.start),
+      served: status.served,
       lastBuild: time(status.lastBuild),
       errors: status.errors,
-      programs: Object.entries(status.programs).map(([k, v]) => [
+      programs: status.listPrograms().map(([k, v]) => [
         k,
         {
           ...v,

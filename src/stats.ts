@@ -91,7 +91,7 @@ function updateStats(program: string) {
 }
 
 function sortStats(stats: Stats) {
-  return Object.fromEntries(Object.entries(stats).sort((a, b) => b[1]! - a[1]!))
+  return Object.fromEntries(Object.entries(stats).sort((a, b) => b[1] - a[1]))
 }
 
 async function getStats(

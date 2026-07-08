@@ -1,43 +1,55 @@
-export { status, updateStatus, getModifiedStatus, error }
-
 import { logger } from './logger.js'
-import type { Status } from './types.js'
 
-const status: Status = {
-  lastBuild: null,
-  errors: 0,
-  programs: {}
-}
+export { Status }
 
-function updateStatus(program: string, items: any[], modified: boolean) {
-  const now = new Date()
-  status.lastBuild = now
+class ProgramStatus {
+  items = 0
+  lastBuild: Date | null = null
+  lastModified: Date | null = null
+  errors = 0
 
-  status.programs[program] = {
-    items: items.length,
-    lastBuild: now,
-    lastModified: modified
-      ? now
-      : (status.programs[program]?.lastModified ?? now),
-    errors: 0
+  update(items: number, modified: boolean, time: Date = new Date()) {
+    this.items = items
+    this.lastBuild = time
+    if (modified) this.lastModified = time
+  }
+
+  error() {
+    this.errors++
   }
 }
 
-function getModifiedStatus(program: string) {
-  return status.programs[program].lastModified
-}
+class Status {
+  private readonly programs: Record<string, ProgramStatus> = {}
 
-function error(program: string, message: string) {
-  logger.error(`${program} ${message}`)
-  if (!(program in status.programs)) {
+  start = Date.now()
+  served = 0
+  lastBuild: Date | null = null
+  errors = 0
+
+  private getProgram(program: string): ProgramStatus {
+    return (this.programs[program] ??= new ProgramStatus())
+  }
+
+  update(program: string, items: number, modified: boolean) {
     const now = new Date()
-    status.programs[program] = {
-      items: 0,
-      lastBuild: now,
-      lastModified: now,
-      errors: 0
-    }
+
+    this.lastBuild = now
+    this.getProgram(program).update(items, modified, now)
   }
-  status.errors++
-  status.programs[program].errors++
+
+  error(program: string, message: string) {
+    logger.error(`${program} ${message}`)
+
+    this.errors++
+    this.getProgram(program).error()
+  }
+
+  getModifiedStatus(program: string): Date {
+    return this.getProgram(program).lastModified ?? new Date(0)
+  }
+
+  listPrograms(): [string, ProgramStatus][] {
+    return Object.entries(this.programs)
+  }
 }

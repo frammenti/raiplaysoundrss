@@ -7,6 +7,7 @@ import { buildAll } from './feed.js'
 import routes from './routes.js'
 import { logger } from './logger.js'
 import type { HttpError } from './errors.js'
+import { Status } from './status.js'
 
 const fastify = Fastify({
   loggerInstance: logger,
@@ -33,8 +34,7 @@ fastify.log.info('What a beautiful day to be alive')
 
 const PORT: number = Number(process.env.PORT || 3000)
 const HOST: string = process.env.HOST || '127.0.0.1'
-const start = Date.now()
-const served = { value: 0 }
+const status = new Status()
 
 await fastify.register(rateLimit, {
   max: 30,
@@ -44,20 +44,18 @@ await fastify.register(rateLimit, {
 await initCache()
 await initStats()
 
-buildAll()
+buildAll(status)
 
 // Register the same routes with no prefix, rss and m3u prefix
 await fastify.register(routes, {
   prefix: '/rss',
-  start,
-  served
+  status
 })
 await fastify.register(routes, {
   prefix: '/m3u',
-  start,
-  served
+  status
 })
-await fastify.register(routes, { prefix: '', start, served })
+await fastify.register(routes, { prefix: '', status })
 
 await fastify.listen({
   port: PORT,

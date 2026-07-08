@@ -39,15 +39,28 @@ function parseDate(dateStr: string, timeStr: string) {
   ).toJSDate()
 }
 
+type TupleOf<T, N extends number, R extends T[] = []> = number extends N
+  ? T[]
+  : R['length'] extends N
+    ? R
+    : TupleOf<T, N, [...R, T]>
+
+function hasLength<T, N extends number>(
+  arr: T[],
+  length: N
+): arr is TupleOf<T, N> {
+  return arr.length === length
+}
+
 function parseDuration(duration: string): number {
   const parts = duration.split(':').map(Number)
 
-  if (parts.length === 2) {
+  if (hasLength(parts, 2)) {
     const [minutes, seconds] = parts
     return minutes * 60 + seconds
   }
 
-  if (parts.length === 3) {
+  if (hasLength(parts, 3)) {
     const [hours, minutes, seconds] = parts
     return hours * 3600 + minutes * 60 + seconds
   }
@@ -58,7 +71,9 @@ function parseDuration(duration: string): number {
 type UnitDisplay = 'short' | 'long' | 'narrow'
 
 // Duration format without Temporal
-const rest = (n: number, m: number) => [Math.floor(n / m), n % m]
+function rest(n: number, m: number): TupleOf<number, 2> {
+  return [Math.floor(n / m), n % m]
+}
 
 function createDurationFormatter(
   locale: string,
