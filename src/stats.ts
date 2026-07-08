@@ -4,12 +4,22 @@ import { logger } from './logger.js'
 import { poolLimit } from './utils.js'
 import type { Stats } from './types.js'
 
-export { initStats, updateStats, flushStats, getStats, countStats, today }
+export {
+  initStats,
+  updateStats,
+  flushStats,
+  getStats,
+  countStats,
+  today,
+  yesterday
+}
 
 const STATS_DIR = './stats'
 const BATCH_SIZE = 20
 
 const today = () => DateTime.now().setZone('Europe/Rome').toISODate()!
+const yesterday = () =>
+  DateTime.now().minus({ days: 1 }).setZone('Europe/Rome').toISODate()!
 
 let totalStats: Stats = {}
 let dailyStats: Stats = {}
