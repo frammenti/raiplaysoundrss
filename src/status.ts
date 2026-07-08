@@ -50,6 +50,8 @@ class Status {
   }
 
   listPrograms(): [string, ProgramStatus][] {
-    return Object.entries(this.programs)
+    return Object.entries(this.programs).sort(
+      (a, b) => b[1].errors - a[1].errors
+    )
   }
 }
