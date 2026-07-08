@@ -11,7 +11,7 @@ import { Status } from './status.js'
 
 const fastify = Fastify({
   loggerInstance: logger,
-  disableRequestLogging: true,
+  logController: new Fastify.LogController({ disableRequestLogging: true }),
   connectionTimeout: 600_000, // 10 minutes
   keepAliveTimeout: 5_000,
   requestTimeout: 10_000
