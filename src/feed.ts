@@ -1,5 +1,5 @@
 import { FeedSerializer } from './serializer.js'
-import { readCache, saveCache, listCache } from './cache.js'
+import { readCache, saveCache, listCache, deleteCache } from './cache.js'
 import { logger } from './logger.js'
 import { NotFoundError, BadGatewayError } from './errors.js'
 import {
@@ -225,7 +225,11 @@ async function buildAll(status: Status) {
     try {
       await buildProgram(program, status)
     } catch (err) {
-      status.error(program, (err as Error).message)
+      // Cleanup old programs no longer in catalog
+      if (err instanceof NotFoundError) {
+        await deleteCache(program)
+        logger.delete(`${program} not in catalog`)
+      } else status.error(program, (err as Error).message)
     }
   }
 

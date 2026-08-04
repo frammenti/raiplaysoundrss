@@ -3,7 +3,7 @@ import path from 'path'
 
 import type { Cache, CachedEpisode } from './types.js'
 
-export { initCache, readCache, saveCache, listCache }
+export { initCache, readCache, saveCache, listCache, deleteCache }
 
 const CACHE_DIR = './cache'
 
@@ -47,4 +47,8 @@ async function listCache() {
   )
     .filter(e => e.endsWith('.json'))
     .map(e => e.slice(0, -5))
+}
+
+async function deleteCache(program: string) {
+  await fs.rm(`${CACHE_DIR}/${program}.json`)
 }
