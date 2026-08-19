@@ -1,8 +1,9 @@
 # RaiPlay Sound RSS
 
 <p align="center" width="100%">
-    <img width="750" height="525" alt="Example of use in the Podcasts app on Linux" title="Example of use in the GNOME Podcasts app on Linux" src="https://github.com/user-attachments/assets/85f0ef38-ad21-4d03-a35d-86f063e8c3e6" />
+    <img width="750" height="562"  alt="Example of use in GNOME Podcasts on Linux" title="Example of use in GNOME Podcasts on Linux" src="https://github.com/user-attachments/assets/57f11b24-962a-4ee1-aa86-ff3deb8d1947" />
 </p>
+
 
 ## What is this?
 
