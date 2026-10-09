@@ -65,7 +65,7 @@ function parseDuration(duration: string): number {
     return hours * 3600 + minutes * 60 + seconds
   }
 
-  throw new Error(`Invalid duration: ${duration}`)
+  return 0
 }
 
 type UnitDisplay = 'short' | 'long' | 'narrow'
