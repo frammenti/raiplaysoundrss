@@ -22,7 +22,12 @@ const MP3_TTL = 1000 * 60 * 60 * 24 * 7 // 1 week
 
 const MEDIA_URL = 'https://creativemedia'
 const MEDIA_URL_FULL = 'https://creativemedia{0}-rai-it.akamaized.net/'
-const PATTERN = /ostr(?<number>\d+)\/(?<file>.*?mp\d)/
+const PATTERN = /podcastcdn\/.*?mp\d/
+const MEDIA_ENDPOINTS = [3, 4]
+
+function pickEndpoint(): number {
+  return MEDIA_ENDPOINTS[Math.floor(Math.random() * MEDIA_ENDPOINTS.length)]!!
+}
 
 async function getFeedData(url: string, program: string): Promise<ProgramItem> {
   const res = await fetchT(url)
@@ -54,10 +59,10 @@ async function resolveMp3(relinker: string) {
 
   // Derive the CDN url
   if (!url.startsWith(MEDIA_URL)) {
-    const { number, file } = PATTERN.exec(url)?.groups ?? {}
+    const file = url.match(PATTERN)
     if (!file) throw new Error(`could not resolve ${url}`)
 
-    url = format(MEDIA_URL_FULL, number ?? 3) + file
+    url = format(MEDIA_URL_FULL, pickEndpoint()) + file[0]
   }
 
   // Try to fetch the mp3 if it exists
