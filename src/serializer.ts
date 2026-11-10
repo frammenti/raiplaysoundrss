@@ -1,4 +1,4 @@
-import { Feed as FeedGenerator } from 'feed'
+import { Feed as FeedGenerator, type Enclosure } from 'feed'
 import type { Feed, Episode, Format } from './types.js'
 
 export { FeedSerializer }
@@ -33,7 +33,7 @@ class FeedSerializer extends FeedGenerator {
       description: ep.description,
       link: ep.webpage,
       date: ep.published,
-      enclosure: {
+      audio: {
         url: ep.audio,
         type: ep.mime,
         duration: ep.duration
@@ -46,11 +46,14 @@ class FeedSerializer extends FeedGenerator {
       `#PLAYLIST:${escape(this.options.title)}`,
       `#EXTIMG:${escape(this.options.image!)}`,
       '',
-      ...this.items.flatMap(ep => [
-        `#EXTINF:${ep.enclosure?.duration ?? -1},${escape(ep.title)}`,
-        ep.enclosure!.url,
-        ''
-      ])
+      ...this.items.flatMap(ep => {
+        const audio = ep.audio as Enclosure
+        return [
+          `#EXTINF:${audio.duration ?? -1},${escape(ep.title)}`,
+          audio.url,
+          ''
+        ]
+      })
     ].join('\n')
   }
 
